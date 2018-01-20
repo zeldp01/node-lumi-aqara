@@ -45,7 +45,8 @@ class Aqara extends events.EventEmitter {
     switch (parsed.cmd) {
       case 'heartbeat':
         if (!this._gateways.has(parsed.sid)) {
-          handled = true
+          // propagate heartbeats as well so sensor battery status gets updated
+          // handled = true
           this._triggerWhois()
         }
         break

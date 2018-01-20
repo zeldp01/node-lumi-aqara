@@ -1,7 +1,7 @@
 const crypto = require('crypto')
 const events = require('events')
 
-const {AQARA_IV, GATEWAY_HEARTBEAT_INTERVAL_MS, GATEWAY_HEARTBEAT_OFFLINE_RATIO} = require('../constants')
+const { AQARA_IV, GATEWAY_HEARTBEAT_INTERVAL_MS, GATEWAY_HEARTBEAT_OFFLINE_RATIO } = require('../constants')
 const Magnet = require('./magnet')
 const Switch = require('./switch')
 const Motion = require('./motion')
@@ -10,7 +10,7 @@ const Leak = require('./leak')
 const Cube = require('./cube')
 
 class Gateway extends events.EventEmitter {
-  constructor (opts) {
+  constructor(opts) {
     super()
 
     this._ip = opts.ip
@@ -28,14 +28,14 @@ class Gateway extends events.EventEmitter {
     this._sendUnicast(payload)
   }
 
-  _rearmWatchdog () {
+  _rearmWatchdog() {
     if (this._heartbeatWatchdog) clearTimeout(this._heartbeatWatchdog)
     this._heartbeatWatchdog = setTimeout(() => {
       this.emit('offline')
     }, GATEWAY_HEARTBEAT_INTERVAL_MS * GATEWAY_HEARTBEAT_OFFLINE_RATIO)
   }
 
-  _handleMessage (msg) {
+  _handleMessage(msg) {
     let sid
     let type
     let state
@@ -70,7 +70,7 @@ class Gateway extends events.EventEmitter {
               break
             case 'switch':
             case 'sensor_switch.aq2':
-            subdevice = new Switch({ sid })
+              subdevice = new Switch({ sid })
               break
             case 'motion':
             case 'sensor_motion.aq2':
@@ -101,6 +101,14 @@ class Gateway extends events.EventEmitter {
         if (msg.sid === this._sid) {
           this._refreshKey(msg.token)
           this._rearmWatchdog()
+        } else {
+          const subdevice = this._subdevices.get(msg.sid)
+          state = JSON.parse(msg.data)
+          if (subdevice) {
+            subdevice._handleState(state)
+          } else {
+            // console.log('did not manage to find device, or device not yet supported')
+          }
         }
         break
       case 'report':
@@ -120,7 +128,7 @@ class Gateway extends events.EventEmitter {
     return true
   }
 
-  _handleState (state) {
+  _handleState(state) {
     const buf = Buffer.alloc(4)
     buf.writeUInt32BE(state.rgb, 0)
     this._color.r = buf.readUInt8(1)
@@ -131,7 +139,7 @@ class Gateway extends events.EventEmitter {
     this.emit('lightState', { color: this._color, intensity: this._intensity })
   }
 
-  _refreshKey (token) {
+  _refreshKey(token) {
     if (token) this._token = token
     if (!this._password || !this._token) return
 
@@ -140,7 +148,7 @@ class Gateway extends events.EventEmitter {
     cipher.final('hex') // useless
   }
 
-  _writeColor () {
+  _writeColor() {
     const buf = Buffer.alloc(4)
     buf.writeUInt8(this._intensity, 0)
     buf.writeUInt8(this._color.r, 1)
@@ -153,26 +161,26 @@ class Gateway extends events.EventEmitter {
     this._sendUnicast(payload)
   }
 
-  get ip () { return this._ip }
-  get sid () { return this._sid }
-  get ready () { return this._ready }
+  get ip() { return this._ip }
+  get sid() { return this._sid }
+  get ready() { return this._ready }
 
-  get password () { return this._password }
-  setPassword (password) {
+  get password() { return this._password }
+  setPassword(password) {
     this._password = password
     this._refreshKey()
   }
 
-  get color () { return this._color }
-  setColor (color) {
+  get color() { return this._color }
+  setColor(color) {
     if (!this._ready) return
 
     this._color = color
     this._writeColor()
   }
 
-  get intensity () { return this._intensity }
-  setIntensity (intensity) {
+  get intensity() { return this._intensity }
+  setIntensity(intensity) {
     if (!this._ready) return
 
     this._intensity = intensity
